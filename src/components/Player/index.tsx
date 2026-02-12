@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Track } from "src/types";
 import { calcAudioDuration } from "src/utils/calcAudioDuration";
+import { useGetTracks } from "src/api/queries";
+import { Tooltip } from "../Tooltip";
 
 type PlayerProps = {
   selectedTrack: Track | null;
+  setSelectedTrack: Dispatch<SetStateAction<Track | null>>;
 };
 
-export const Player = ({ selectedTrack }: PlayerProps) => {
+export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
   const isDisabled = !selectedTrack;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -15,6 +18,45 @@ export const Player = ({ selectedTrack }: PlayerProps) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(50);
+  const [hoverTime, setHoverTime] = useState(0);
+  const [tooltipPosition, setTooltipPosition] = useState(0);
+
+  const { data: tracks } = useGetTracks();
+
+  const currentTrackIndex =
+    tracks?.findIndex((t) => t._id === selectedTrack?._id) ?? -1;
+
+  const isNextTrackAvailable =
+    tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
+      ? currentTrackIndex < tracks.length - 1
+      : false;
+
+  const isPreviousTrackAvailable =
+    tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
+      ? currentTrackIndex > 0
+      : false;
+
+  const playNextTrack = () => {
+    const nextTrack =
+      tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
+        ? tracks[currentTrackIndex + 1]
+        : undefined;
+
+    if (!isNextTrackAvailable || !nextTrack) return;
+
+    setSelectedTrack(nextTrack);
+  };
+
+  const playPreviousTrack = () => {
+    const previousTrack =
+      tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
+        ? tracks[currentTrackIndex - 1]
+        : undefined;
+
+    if (!isPreviousTrackAvailable || !previousTrack) return;
+
+    setSelectedTrack(previousTrack);
+  };
 
   useEffect(() => {
     // Volume control
@@ -58,15 +100,48 @@ export const Player = ({ selectedTrack }: PlayerProps) => {
   }, [selectedTrack, setDuration, setCurrentTime]);
 
   return (
-    <header className="relative w-full overflow-hidden bg-white/80 bg-gradient-to-br from-amber-50 via-white to-amber-50 backdrop-blur-xl shadow-sm">
+    <header className="relative w-full bg-white/80 bg-gradient-to-br from-amber-50 via-white to-amber-50 backdrop-blur-xl shadow-sm">
+      <Tooltip
+        onClick={({ currentTarget, clientX }) => {
+          if (!audioRef.current) return;
+
+          const { width } = currentTarget.getBoundingClientRect();
+
+          const progress = (clientX / width) * duration;
+
+          setCurrentTime(progress);
+
+          audioRef.current.currentTime = progress;
+        }}
+        onMouseMove={({ currentTarget, clientX }) => {
+          const { width } = currentTarget.getBoundingClientRect();
+
+          const progress = (clientX / width) * duration;
+
+          setHoverTime(progress);
+          setTooltipPosition(clientX);
+        }}
+        className={`h-[6px] bg-slate-200/80 cursor-pointer`}
+        content={`${Math.floor(hoverTime / 60)}:${Math.floor(hoverTime % 60)
+          .toString()
+          .padStart(2, "0")}`}
+        tooltipStyle={{ left: `${tooltipPosition}px` }}
+      >
+        <div
+          className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 transition-[width] duration-200 ease-linear"
+          style={{ width: `${(currentTime / duration) * 100}%` }}
+        />
+      </Tooltip>
+
       <div className="relative mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
-              disabled={isDisabled}
+              onClick={playPreviousTrack}
+              disabled={isDisabled || !isPreviousTrackAvailable}
               className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition sm:h-9 sm:w-9 ${
-                isDisabled
+                isDisabled || !isPreviousTrackAvailable
                   ? "cursor-default bg-zinc-100 text-zinc-300 ring-zinc-100"
                   : "cursor-pointer bg-white/80 text-amber-500 ring-amber-100 hover:bg-amber-50 hover:ring-amber-200"
               }`}
@@ -115,10 +190,11 @@ export const Player = ({ selectedTrack }: PlayerProps) => {
             </button>
 
             <button
-              disabled={isDisabled}
               type="button"
+              onClick={playNextTrack}
+              disabled={isDisabled || !isNextTrackAvailable}
               className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition sm:h-9 sm:w-9 ${
-                isDisabled
+                isDisabled || !isNextTrackAvailable
                   ? "cursor-default bg-zinc-100 text-zinc-300 ring-zinc-100"
                   : "cursor-pointer bg-white/80 text-amber-500 ring-amber-100 hover:bg-amber-50 hover:ring-amber-200"
               }`}
@@ -201,12 +277,6 @@ export const Player = ({ selectedTrack }: PlayerProps) => {
             </div>
           </div>
         </div>
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[4px] bg-slate-200/80">
-        <div
-          className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 transition-[width] duration-200 ease-linear"
-          style={{ width: `${(currentTime / duration) * 100}%` }}
-        />
       </div>
     </header>
   );

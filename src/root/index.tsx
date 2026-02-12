@@ -19,7 +19,7 @@ export const App = () => {
 
         {isLoading && <Loader />}
       </main>
-      <Player selectedTrack={selectedTrack} />
+      <Player setSelectedTrack={setSelectedTrack} selectedTrack={selectedTrack} />
     </div>
   );
 };
