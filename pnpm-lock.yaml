@@ -11,6 +11,12 @@ importers:
 
   .:
     dependencies:
+      '@babylonjs/core':
+        specifier: ^8.51.0
+        version: 8.51.0
+      '@babylonjs/loaders':
+        specifier: ^8.51.0
+        version: 8.51.0(@babylonjs/core@8.51.0)(babylonjs-gltf2interface@8.51.0)
       '@tailwindcss/postcss':
         specifier: ^4.1.17
         version: 4.1.18
@@ -179,6 +185,15 @@ packages:
   '@babel/types@7.28.6':
     resolution: {integrity: sha512-0ZrskXVEHSWIqZM/sQZ4EV3jZJXRkio/WCxaqKZP1g//CEWEPSfeZFcms4XeKBCHU0ZKnIkdJeU/kF+eRp5lBg==}
     engines: {node: '>=6.9.0'}
+
+  '@babylonjs/core@8.51.0':
+    resolution: {integrity: sha512-DF9RbwMBRcA7XjbT/LbMy1GAgY1JZ1Fh5ANblSOscDHff3uTMYaAXDtIo9cVH6gSn4Uy3rvU/NDIZFo/mwKeqw==}
+
+  '@babylonjs/loaders@8.51.0':
+    resolution: {integrity: sha512-e6rTsNIHaVAWNQiT3RiIfHcdM83rz8nby/gfnBiLABJyUUNeMjm9otj19Vw6hbWzLOiOnsmqlV+N1KxwGRfl5w==}
+    peerDependencies:
+      '@babylonjs/core': ^8.0.0
+      babylonjs-gltf2interface: ^8.0.0
 
   '@emnapi/core@1.8.1':
     resolution: {integrity: sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg==}
@@ -622,6 +637,9 @@ packages:
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
+
+  babylonjs-gltf2interface@8.51.0:
+    resolution: {integrity: sha512-vpiMsY0TBbrDcoANkFAUCwBYKF9XZiK6g8qa8YE8JoknHddyujKkxhHEQOooQvZ5RYvYSbrDJsvIAH9TVPFxGQ==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -1918,6 +1936,13 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
+  '@babylonjs/core@8.51.0': {}
+
+  '@babylonjs/loaders@8.51.0(@babylonjs/core@8.51.0)(babylonjs-gltf2interface@8.51.0)':
+    dependencies:
+      '@babylonjs/core': 8.51.0
+      babylonjs-gltf2interface: 8.51.0
+
   '@emnapi/core@1.8.1':
     dependencies:
       '@emnapi/wasi-threads': 1.1.0
@@ -2390,6 +2415,8 @@ snapshots:
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
+
+  babylonjs-gltf2interface@8.51.0: {}
 
   balanced-match@1.0.2: {}
 
