@@ -9,8 +9,11 @@ import {
   Vector3,
   HemisphericLight,
   Color4,
+  Texture,
+  PBRMaterial,
 } from "@babylonjs/core";
 import "@babylonjs/loaders";
+import { Track } from "src/types";
 
 type Imported = { root: AbstractMesh; mesh: AbstractMesh };
 
@@ -84,12 +87,17 @@ const placeCenterOnDisc = (disc: Imported, center: Imported) => {
   center.root.computeWorldMatrix(true);
 };
 
-export const Vinyl = () => {
+type Props = {
+  selectedTrack: Track | null;
+};
+
+export const Vinyl = ({ selectedTrack }: Props) => {
   const canvas = useRef<HTMLCanvasElement>(null);
   const scene = useRef<Scene>(null);
   const engine = useRef<Engine>(null);
   const camera = useRef<Camera>(null);
   const light = useRef<HemisphericLight>(null);
+  const centerMeshRef = useRef<Imported | null>(null);
 
   // Initialize Babylon.js
   useEffect(() => {
@@ -152,6 +160,7 @@ export const Vinyl = () => {
       );
 
       if (!centerMesh) return;
+      centerMeshRef.current = centerMesh;
 
       changeScale(centerMesh.root, 3.3);
       changeScale(discMesh.root, 8);
@@ -191,6 +200,22 @@ export const Vinyl = () => {
 
     loadModules();
   }, [scene]);
+
+  useEffect(() => {
+    if (!centerMeshRef.current || !selectedTrack || !scene.current) return;
+
+    const texture = new Texture(selectedTrack.previewPath, scene.current);
+    texture.uScale = 5;
+    texture.vScale = 5;
+
+    const material = new PBRMaterial("material", scene.current);
+    material.albedoTexture = texture;
+    material.metallic = 0;
+
+    centerMeshRef.current.root.getChildMeshes().forEach((m) => {
+      if (m.getTotalVertices() > 0) m.material = material;
+    });
+  }, [selectedTrack, centerMeshRef, scene]);
 
   return (
     <div className="h-full flex-1 w-[70%]">

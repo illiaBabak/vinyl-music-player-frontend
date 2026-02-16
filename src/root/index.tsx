@@ -15,11 +15,14 @@ export const App = () => {
     <div className="flex h-screen flex-col bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
       <main className="flex flex-1 px-2 py-2 overflow-hidden relative">
         <Bar setSelectedTrack={setSelectedTrack} />
-        <Vinyl />
+        <Vinyl selectedTrack={selectedTrack} />
 
         {isLoading && <Loader />}
       </main>
-      <Player setSelectedTrack={setSelectedTrack} selectedTrack={selectedTrack} />
+      <Player
+        setSelectedTrack={setSelectedTrack}
+        selectedTrack={selectedTrack}
+      />
     </div>
   );
 };
