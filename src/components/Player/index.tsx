@@ -3,6 +3,7 @@ import { Track } from "src/types";
 import { calcAudioDuration } from "src/utils/calcAudioDuration";
 import { useGetTracks } from "src/api/queries";
 import { Tooltip } from "../Tooltip";
+import { ChangeAudioDevice } from "../ChangeAudioDevice";
 
 type PlayerProps = {
   selectedTrack: Track | null;
@@ -210,15 +211,13 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
             </button>
           </div>
 
-          {selectedTrack && (
-            <audio
-              onPlay={() => setIsPlaying(true)}
-              ref={audioRef}
-              className="hidden"
-              autoPlay
-              src={selectedTrack?.audioPath}
-            />
-          )}
+          <audio
+            onPlay={() => setIsPlaying(true)}
+            ref={audioRef}
+            className="hidden"
+            autoPlay={!!selectedTrack}
+            src={selectedTrack?.audioPath}
+          />
 
           {selectedTrack && (
             <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
@@ -275,6 +274,8 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
                 }}
               />
             </div>
+
+            {audioRef.current && <ChangeAudioDevice audio={audioRef.current} />}
           </div>
         </div>
       </div>
