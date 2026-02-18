@@ -11,11 +11,12 @@ import {
   Color4,
   Texture,
   PBRMaterial,
-  MeshBuilder,
   Space,
   TransformNode,
+  MeshBuilder,
 } from "@babylonjs/core";
 import "@babylonjs/loaders";
+import "@babylonjs/inspector";
 import { Track } from "src/types";
 
 type Imported = { root: AbstractMesh; mesh: AbstractMesh };
@@ -106,7 +107,7 @@ export const Vinyl = ({ selectedTrack }: Props) => {
   useEffect(() => {
     const canvasElement = canvas.current;
 
-    if (!canvasElement) return;
+    if (!canvasElement || engine.current) return;
 
     engine.current = new Engine(canvasElement, true, {
       preserveDrawingBuffer: true,
@@ -139,6 +140,10 @@ export const Vinyl = ({ selectedTrack }: Props) => {
 
     light.current.intensity = 0.9;
 
+    // scene.current?.debugLayer.show({
+    //   embedMode: true,
+    // });
+
     return () => {
       engine.current?.dispose();
       engine.current = null;
@@ -149,9 +154,15 @@ export const Vinyl = ({ selectedTrack }: Props) => {
   useEffect(() => {
     const sceneElement = scene.current;
 
-    if (!sceneElement) return;
+    if (!sceneElement || centerMeshRef.current) return;
 
     const loadModules = async () => {
+      const worldRoot = new TransformNode("worldRoot", sceneElement);
+
+      worldRoot.scaling = new Vector3(-1, 1, 1);
+
+      worldRoot.computeWorldMatrix(true);
+
       const discMesh = await importModuleToScene(
         "/vinyl-model/disc.glb",
         sceneElement
@@ -170,7 +181,7 @@ export const Vinyl = ({ selectedTrack }: Props) => {
       changeScale(centerMesh.root, 3.3);
       changeScale(discMesh.root, 8);
 
-      const discCoords = { x: -0.055, y: 2.455, z: -0.73 };
+      const discCoords = { x: -0.055, y: 2.455, z: -0.7 };
 
       changePosition(
         discMesh.root,
@@ -191,31 +202,39 @@ export const Vinyl = ({ selectedTrack }: Props) => {
       if (!tonearmMesh) return;
 
       changeScale(tonearmMesh.root, 4);
-      // changePosition(tonearmMesh.root, new Vector3(-0.35, 3.2, 0.4));
-      changePosition(tonearmMesh.root, new Vector3(-1.5, 2.97, 1.68));
+      changePosition(tonearmMesh.root, new Vector3(-0.79, -0.48, 0.88));
 
       // const t = MeshBuilder.CreateBox("t", { size: 0.05 }, sceneElement);
-      // changePosition(t, new Vector3(-0.72, 3.5, 0.8));
+      // changePosition(t, new Vector3(-0.749, 3.45, 0.85));
       // t.computeWorldMatrix(true);
 
       const pivotNode = new TransformNode("pivot", sceneElement);
-      pivotNode.position = new Vector3(-0.72, 3.5, 0.8);
-      tonearmMesh.root.setParent(pivotNode);
+      pivotNode.position = new Vector3(-0.749, 3.45, 0.85);
+      pivotNode.parent = worldRoot;
+      pivotNode.computeWorldMatrix(true);
+
+      tonearmMesh.root.parent = pivotNode;
 
       tonearmMesh.root.rotationQuaternion = null;
       tonearmMesh.root.computeWorldMatrix(true);
 
-      pivotNode.rotate(Vector3.Up(), Math.PI / 0.82, Space.WORLD);
-      pivotNode.computeWorldMatrix(true);
+      pivotNode.rotate(Vector3.Up(), Math.PI / 1.28, Space.WORLD);
 
       const vinylMesh = await importModuleToScene(
-        "/vinyl-model/empty-vinyl.glb",
+        "/vinyl-model/vinyl.glb",
         sceneElement
       );
 
       if (!vinylMesh) return;
 
-      changePosition(vinylMesh.root, new Vector3(0, 3, 0));
+      vinylMesh.root.rotation.x = Math.PI;
+
+      changePosition(vinylMesh.root, new Vector3(0, 2.97, 0));
+
+      // t.parent = worldRoot;
+      discMesh.root.parent = worldRoot;
+      centerMesh.root.parent = worldRoot;
+      vinylMesh.root.parent = worldRoot;
     };
 
     loadModules();
