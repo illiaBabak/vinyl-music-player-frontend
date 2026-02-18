@@ -11,6 +11,9 @@ import {
   Color4,
   Texture,
   PBRMaterial,
+  MeshBuilder,
+  Space,
+  TransformNode,
 } from "@babylonjs/core";
 import "@babylonjs/loaders";
 import { Track } from "src/types";
@@ -134,6 +137,8 @@ export const Vinyl = ({ selectedTrack }: Props) => {
       scene.current
     );
 
+    light.current.intensity = 0.9;
+
     return () => {
       engine.current?.dispose();
       engine.current = null;
@@ -165,7 +170,7 @@ export const Vinyl = ({ selectedTrack }: Props) => {
       changeScale(centerMesh.root, 3.3);
       changeScale(discMesh.root, 8);
 
-      const discCoords = { x: -0.05, y: 2.49, z: -0.7 };
+      const discCoords = { x: -0.055, y: 2.455, z: -0.73 };
 
       changePosition(
         discMesh.root,
@@ -185,8 +190,23 @@ export const Vinyl = ({ selectedTrack }: Props) => {
 
       if (!tonearmMesh) return;
 
-      changeScale(tonearmMesh.root, 6.5);
-      changePosition(tonearmMesh.root, new Vector3(0.7, 2.703, -0.7));
+      changeScale(tonearmMesh.root, 4);
+      // changePosition(tonearmMesh.root, new Vector3(-0.35, 3.2, 0.4));
+      changePosition(tonearmMesh.root, new Vector3(-1.5, 2.97, 1.68));
+
+      // const t = MeshBuilder.CreateBox("t", { size: 0.05 }, sceneElement);
+      // changePosition(t, new Vector3(-0.72, 3.5, 0.8));
+      // t.computeWorldMatrix(true);
+
+      const pivotNode = new TransformNode("pivot", sceneElement);
+      pivotNode.position = new Vector3(-0.72, 3.5, 0.8);
+      tonearmMesh.root.setParent(pivotNode);
+
+      tonearmMesh.root.rotationQuaternion = null;
+      tonearmMesh.root.computeWorldMatrix(true);
+
+      pivotNode.rotate(Vector3.Up(), Math.PI / 0.82, Space.WORLD);
+      pivotNode.computeWorldMatrix(true);
 
       const vinylMesh = await importModuleToScene(
         "/vinyl-model/empty-vinyl.glb",
