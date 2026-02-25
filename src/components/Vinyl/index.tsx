@@ -2,7 +2,6 @@ import { SetStateAction, Dispatch, useEffect, useRef } from "react";
 import {
   AbstractMesh,
   ArcRotateCamera,
-  Camera,
   Engine,
   ImportMeshAsync,
   Scene,
@@ -18,6 +17,7 @@ import {
   TransformNode,
   MeshBuilder,
   Animation,
+  Animatable,
   CubicEase,
   EasingFunction,
 } from "@babylonjs/core";
@@ -254,10 +254,14 @@ const playDiscPositionAnim = (
   });
 };
 
-const playDiscSpinAnim = (scene: Scene, pivot: TransformNode) => {
-  return new Promise<void>((resolve) => {
+const startDiscSpin = (
+  scene: Scene,
+  pivot: TransformNode
+): Promise<Animatable> => {
+  return new Promise((resolve) => {
     const fps = 60;
     const totalFrames = 100;
+    const startAngle = pivot.rotation.y || 0;
 
     const anim = new Animation(
       "discRotate",
@@ -268,23 +272,62 @@ const playDiscSpinAnim = (scene: Scene, pivot: TransformNode) => {
     );
 
     anim.setKeys([
-      { frame: 0, value: 0 },
-      { frame: totalFrames, value: Math.PI * 2 },
+      { frame: 0, value: startAngle },
+      { frame: totalFrames, value: startAngle + Math.PI * 2 },
     ]);
 
     scene.stopAnimation(pivot);
 
-    const animation = scene.beginDirectAnimation(
+    const animatable = scene.beginDirectAnimation(
       pivot,
       [anim],
       0,
       totalFrames,
       true
     );
+    animatable.speedRatio = 0;
 
-    animation.onAnimationEndObservable.add(() => {
-      resolve();
-    });
+    const accelDuration = 1500;
+    const startTime = performance.now();
+
+    const update = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(elapsed / accelDuration, 1);
+      animatable.speedRatio = t * t;
+
+      if (t < 1) {
+        requestAnimationFrame(update);
+      } else {
+        animatable.speedRatio = 1;
+        resolve(animatable);
+      }
+    };
+
+    requestAnimationFrame(update);
+  });
+};
+
+const stopDiscSpin = (animatable: Animatable): Promise<void> => {
+  return new Promise((resolve) => {
+    const decelDuration = 1500;
+    const startTime = performance.now();
+
+    const update = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(elapsed / decelDuration, 1);
+      const remaining = 1 - t;
+      animatable.speedRatio = remaining * remaining;
+
+      if (t < 1) {
+        requestAnimationFrame(update);
+      } else {
+        animatable.speedRatio = 0;
+        animatable.stop();
+        resolve();
+      }
+    };
+
+    requestAnimationFrame(update);
   });
 };
 
@@ -327,13 +370,14 @@ export const Vinyl = ({ selectedTrack, setShouldPlaying }: Props) => {
   const canvas = useRef<HTMLCanvasElement>(null);
   const scene = useRef<Scene>(null);
   const engine = useRef<Engine>(null);
-  const camera = useRef<Camera>(null);
+  const camera = useRef<ArcRotateCamera>(null);
   const light = useRef<HemisphericLight>(null);
 
   const pivotNodeRef = useRef<TransformNode | null>(null);
   const spinPivotNodeRef = useRef<TransformNode | null>(null);
   const centerMeshRef = useRef<Imported | null>(null);
   const discMeshRef = useRef<Imported | null>(null);
+  const spinAnimRef = useRef<Animatable | null>(null);
 
   // Initialize Babylon.js
   useEffect(() => {
@@ -356,12 +400,16 @@ export const Vinyl = ({ selectedTrack, setShouldPlaying }: Props) => {
     camera.current = new ArcRotateCamera(
       "camera",
       Math.PI / 0.63,
-      Math.PI / 3.3,
-      2.15,
-      new Vector3(0.22, 3.7, 0),
+      Math.PI / 3.8,
+      3.1,
+      new Vector3(0.1, 3.6, 0.3),
       scene.current
     );
 
+    camera.current.lowerAlphaLimit = camera.current.alpha;
+    camera.current.upperAlphaLimit = camera.current.alpha;
+    camera.current.lowerBetaLimit = 0;
+    camera.current.upperBetaLimit = Math.PI / 1.5;
     camera.current.attachControl(canvasElement, true);
 
     light.current = new HemisphericLight(
@@ -551,6 +599,11 @@ export const Vinyl = ({ selectedTrack, setShouldPlaying }: Props) => {
     const runAnimations = async () => {
       setShouldPlaying(false);
 
+      if (spinAnimRef.current) {
+        await stopDiscSpin(spinAnimRef.current);
+        spinAnimRef.current = null;
+      }
+
       await playTonearmLiftAnim(
         sceneElement,
         pivotNode,
@@ -603,7 +656,7 @@ export const Vinyl = ({ selectedTrack, setShouldPlaying }: Props) => {
 
       setShouldPlaying(true);
 
-      await playDiscSpinAnim(sceneElement, spinPivotNode);
+      spinAnimRef.current = await startDiscSpin(sceneElement, spinPivotNode);
     };
 
     runAnimations();
