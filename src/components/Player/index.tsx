@@ -1,16 +1,29 @@
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Track } from "src/types";
 import { calcAudioDuration } from "src/utils/calcAudioDuration";
-import { useGetTracks } from "src/api/queries";
 import { Tooltip } from "../Tooltip";
 import { ChangeAudioDevice } from "../ChangeAudioDevice";
 
 type PlayerProps = {
   selectedTrack: Track | null;
   setSelectedTrack: Dispatch<SetStateAction<Track | null>>;
+  shouldPlaying: boolean;
+  tracks: Track[];
 };
 
-export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
+export const Player = ({
+  selectedTrack,
+  setSelectedTrack,
+  shouldPlaying,
+  tracks,
+}: PlayerProps) => {
   const isDisabled = !selectedTrack;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -22,10 +35,8 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
   const [hoverTime, setHoverTime] = useState(0);
   const [tooltipPosition, setTooltipPosition] = useState(0);
 
-  const { data: tracks } = useGetTracks();
-
   const currentTrackIndex =
-    tracks?.findIndex((t) => t._id === selectedTrack?._id) ?? -1;
+    tracks.findIndex((t) => t._id === selectedTrack?._id) ?? -1;
 
   const isNextTrackAvailable =
     tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
@@ -37,68 +48,79 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
       ? currentTrackIndex > 0
       : false;
 
-  const playNextTrack = () => {
-    const nextTrack =
-      tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
-        ? tracks[currentTrackIndex + 1]
-        : undefined;
+  const playNextTrack = useCallback(() => {
+    const nextTrack = tracks[currentTrackIndex + 1];
 
     if (!isNextTrackAvailable || !nextTrack) return;
 
     setSelectedTrack(nextTrack);
-  };
+  }, [tracks, currentTrackIndex, isNextTrackAvailable, setSelectedTrack]);
 
-  const playPreviousTrack = () => {
-    const previousTrack =
-      tracks && currentTrackIndex !== undefined && currentTrackIndex !== null
-        ? tracks[currentTrackIndex - 1]
-        : undefined;
+  const playPreviousTrack = useCallback(() => {
+    const previousTrack = tracks[currentTrackIndex - 1];
 
     if (!isPreviousTrackAvailable || !previousTrack) return;
 
     setSelectedTrack(previousTrack);
-  };
+  }, [tracks, currentTrackIndex, isPreviousTrackAvailable, setSelectedTrack]);
 
   useEffect(() => {
-    // Volume control
+    setIsPlaying(shouldPlaying && !!selectedTrack);
+  }, [shouldPlaying, selectedTrack]);
+
+  useEffect(() => {
     if (!audioRef.current) return;
 
     audioRef.current.volume = volume / 100;
   }, [volume]);
 
   useEffect(() => {
-    // Play/pause control
     if (!audioRef.current) return;
 
     if (isPlaying) audioRef.current.play();
-    else {
-      audioRef.current.pause();
-      return;
-    }
-
-    // Update current time every 100ms
-    const interval = setInterval(() => {
-      setCurrentTime((prev) => prev + 0.1);
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, setCurrentTime]);
+    else audioRef.current.pause();
+  }, [isPlaying]);
 
   useEffect(() => {
-    // Load audio duration
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+
+    return () => audio.removeEventListener("timeupdate", handleTimeUpdate);
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    const handleEnded = () => {
+      if (isNextTrackAvailable) playNextTrack();
+      else setIsPlaying(false);
+    };
+
+    audio.addEventListener("ended", handleEnded);
+
+    return () => audio.removeEventListener("ended", handleEnded);
+  }, [isNextTrackAvailable, playNextTrack]);
+
+  useEffect(() => {
     if (!selectedTrack) return;
 
+    setCurrentTime(0);
+    setDuration(0);
+
     const loadAudio = async () => {
-      setCurrentTime(0);
-      setDuration(0);
-
-      const duration = await calcAudioDuration(selectedTrack?.audioPath);
-
+      const duration = await calcAudioDuration(selectedTrack.audioPath);
       setDuration(duration);
     };
 
     loadAudio();
-  }, [selectedTrack, setDuration, setCurrentTime]);
+  }, [selectedTrack]);
 
   return (
     <header className="relative w-full bg-white/80 bg-gradient-to-br from-amber-50 via-white to-amber-50 backdrop-blur-xl shadow-sm">
@@ -140,9 +162,11 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
             <button
               type="button"
               onClick={playPreviousTrack}
-              disabled={isDisabled || !isPreviousTrackAvailable}
+              disabled={
+                isDisabled || !isPreviousTrackAvailable || !shouldPlaying
+              }
               className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition sm:h-9 sm:w-9 ${
-                isDisabled || !isPreviousTrackAvailable
+                isDisabled || !isPreviousTrackAvailable || !shouldPlaying
                   ? "cursor-default bg-zinc-100 text-zinc-300 ring-zinc-100"
                   : "cursor-pointer bg-white/80 text-amber-500 ring-amber-100 hover:bg-amber-50 hover:ring-amber-200"
               }`}
@@ -160,9 +184,9 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
             <button
               onClick={() => setIsPlaying((prev) => !prev)}
               type="button"
-              disabled={isDisabled}
+              disabled={isDisabled || !shouldPlaying}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-white shadow-md transition sm:h-11 sm:w-11 ${
-                isDisabled
+                isDisabled || !shouldPlaying
                   ? "cursor-default bg-zinc-200 text-zinc-400 shadow-none"
                   : "cursor-pointer bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 hover:shadow-lg hover:brightness-105"
               }`}
@@ -193,9 +217,9 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
             <button
               type="button"
               onClick={playNextTrack}
-              disabled={isDisabled || !isNextTrackAvailable}
+              disabled={isDisabled || !isNextTrackAvailable || !shouldPlaying}
               className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition sm:h-9 sm:w-9 ${
-                isDisabled || !isNextTrackAvailable
+                isDisabled || !isNextTrackAvailable || !shouldPlaying
                   ? "cursor-default bg-zinc-100 text-zinc-300 ring-zinc-100"
                   : "cursor-pointer bg-white/80 text-amber-500 ring-amber-100 hover:bg-amber-50 hover:ring-amber-200"
               }`}
@@ -212,10 +236,8 @@ export const Player = ({ selectedTrack, setSelectedTrack }: PlayerProps) => {
           </div>
 
           <audio
-            onPlay={() => setIsPlaying(true)}
             ref={audioRef}
             className="hidden"
-            autoPlay={!!selectedTrack}
             src={selectedTrack?.audioPath}
           />
 
